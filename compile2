@@ -1,0 +1,3 @@
+pgf90 -static-nvidia -fast -O2 -o lax lax-wendroff-method-01.for
+
+gfortran -m64 -Wall -fcheck=all -fbounds-check -pedantic -fbacktrace -o lax lax-wendroff-method-01.for
