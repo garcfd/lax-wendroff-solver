@@ -1,5 +1,4 @@
 
-
       program main
       implicit none
 
@@ -21,10 +20,10 @@
       integer ccln,ii,jj,nout,iloc,jloc
 
       real dx,dy,dz,dt,dtdx,dtdy
-      real uu,vv,rr,pp,tt,et,eps
+      real uu,vv,rr,pp,tt,ee,eps
       real rinf,uinf,vinf,pinf,tinf
       real rgas,cp,cv,kth,ga,ma,cs
-      real ptot,ttot
+      real ptot,ttot,einf,sigma
 
       real unrm,vnrm,unew,vnew,tweak
       real unew1,vnew1,unew2,vnew2
@@ -32,10 +31,8 @@
       real nrm1,nrm2,mag1,mag2,dotp
       real diff1,diff2,uold,vold,xx,yy
 
-
       character(31) outfile
       character(3) string
-
 
 C-----specify constants
       dx = 0.1      ! spacing
@@ -49,11 +46,12 @@ C-----specify constants
       vinf = 0.0
       pinf = 101325.0
       tinf = 288.0
+      einf = rinf*cv*tinf + 0.5*rinf*(uinf*uinf + vinf*vinf)
 
       ptot = 101386.25  ! pstatic + hrv2
       ttot = 288.04877  ! tstatic + hv2/cp
 
-      nsav = 100
+      nsav = 40
       nits = 1000
       nout = 100
 
@@ -84,7 +82,6 @@ C-----specify live/dead regions (if needed)
 
       enddo
       enddo
-
 
 
 C-----create uniform mesh nodes
@@ -145,17 +142,17 @@ C-------top wall
 
 C-------left wall
         if ((i.eq.0).and.(j.ge.1).and.(j.le.nj)) then
-          uu = 2.0*u(1,j) - u(2,j)
+          uu = u(1,j)
           vv = vinf
-          pp = ptot - 0.5*rinf*uu*uu ! bernoulli
-          tt = ttot - 0.5*uu*uu/cp     ! bernoulli
+          pp = ptot - 0.5*rinf*(uu*uu + vv*vv)   ! bernoulli
+          tt = ttot - 0.5*(uu*uu + vv*vv)/cp   ! bernoulli
           rr = pp/(rgas*tt)
 
-c          pp = pinf
-c          tt = tinf
-c          uu = uinf
-c          vv = vinf
-c          rr = rinf
+c           pp = p(1,j)
+c           tt = tinf
+c           uu = uinf
+c           vv = vinf
+c           rr = pp/(rgas*tt)
         endif
 
 C-------right wall
@@ -177,22 +174,22 @@ C-------main block of inner cells
         endif
 
 C-------for all cell centres
-        et = rr*cv*tt + 0.5*rr*(uu*uu + vv*vv)
+        ee = rr*cv*tt + 0.5*rr*(uu*uu + vv*vv)
 
         Q(i,j,1) = rr
         Q(i,j,2) = rr*uu
         Q(i,j,3) = rr*vv
-        Q(i,j,4) = et
+        Q(i,j,4) = ee
 
         E(i,j,1) = rr*uu
         E(i,j,2) = rr*uu*uu + pp
         E(i,j,3) = rr*uu*vv
-        E(i,j,4) = uu*(et + pp)
+        E(i,j,4) = uu*(ee + pp)
 
         F(i,j,1) = rr*vv
         F(i,j,2) = rr*vv*uu
         F(i,j,3) = rr*vv*vv + pp
-        F(i,j,4) = vv*(et + pp)
+        F(i,j,4) = vv*(ee + pp)
 
       enddo
       enddo
@@ -216,12 +213,12 @@ C-----step3 i-face vectors (half step)
         tt = (Qf(4)/rr - 0.5*(uu*uu + vv*vv))/cv
 
         pp = rr*rgas*tt ! (ideal gas law)
-        et = rr*cv*tt + 0.5*rr*(uu*uu + vv*vv)
+        ee = rr*cv*tt + 0.5*rr*(uu*uu + vv*vv)
 
         Ef(i,j,1) = rr*uu
         Ef(i,j,2) = rr*uu*uu + pp
         Ef(i,j,3) = rr*uu*vv
-        Ef(i,j,4) = uu*(et + pp)
+        Ef(i,j,4) = uu*(ee + pp)
 
       endif
 
@@ -246,12 +243,12 @@ C-----step4 j-face vectors (half step)
         tt = (Qf(4)/rr - 0.5*(uu*uu + vv*vv))/cv
 
         pp = rr*rgas*tt ! (ideal gas law)
-        et = rr*cv*tt + 0.5*rr*(uu*uu + vv*vv)
+        ee = rr*cv*tt + 0.5*rr*(uu*uu + vv*vv)
 
         Ff(i,j,1) = rr*vv
         Ff(i,j,2) = rr*vv*uu
         Ff(i,j,3) = rr*vv*vv + pp
-        Ff(i,j,4) = vv*(et + pp)
+        Ff(i,j,4) = vv*(ee + pp)
 
       endif
 
@@ -267,16 +264,29 @@ C-----step5 Q-vector (full step)
 
       if (live(i,j).eq.1) then
 
+
         sb = 0.0
+
+C-------sponge
+        sigma = 0.0
+        if (i.le.40)  sigma = 1.0*(30-i)/30.0
+        if (i.ge.160) sigma = 1.0*(i-170)/30.0
 
         sb(1) = eps*(q(i+1,j,1) - 2.0*q(i,j,1) + q(i-1,j,1))
      &        + eps*(q(i,j+1,1) - 2.0*q(i,j,1) + q(i,j-1,1))
+     &        + sigma*(rinf - r(i,j))
+
         sb(2) = eps*(q(i+1,j,2) - 2.0*q(i,j,2) + q(i-1,j,2))
      &        + eps*(q(i,j+1,2) - 2.0*q(i,j,2) + q(i,j-1,2))
+     &        + sigma*(uinf - u(i,j))
+
         sb(3) = eps*(q(i+1,j,3) - 2.0*q(i,j,3) + q(i-1,j,3))
      &        + eps*(q(i,j+1,3) - 2.0*q(i,j,3) + q(i,j-1,3))
+     &        + sigma*(vinf - v(i,j))
+
         sb(4) = eps*(q(i+1,j,4) - 2.0*q(i,j,4) + q(i-1,j,4))
      &        + eps*(q(i,j+1,4) - 2.0*q(i,j,4) + q(i,j-1,4))
+CCC  &        + sigma*(tinf - t(i,j))
 
         do n = 1,4
 
