@@ -41,6 +41,13 @@ C-----specify constants
       dt = 0.00001  ! timestep
       eps = 1.0     ! smoothing (0.05)
 
+C-----air properties
+      rgas = 287.1
+      cp   = 1004.5
+      cv   = 717.5
+      ga   = 1.4
+      kth  = 0.026 
+
       rinf = 1.225 
       uinf = 10.0
       vinf = 0.0
@@ -58,11 +65,6 @@ C-----specify constants
       dtdx = dt/dx
       dtdy = dt/dy
 
-      rgas = 287.1
-      cp   = 1004.5
-      cv   = 717.5
-      ga   = 1.4
-      kth  = 0.026 
      
 C-----specify live/dead regions (if needed)
       live = 1   ! everything live
@@ -268,31 +270,46 @@ C-----step5 Q-vector (full step)
         sb = 0.0
 
 C-------sponge
+
         sigma = 0.0
-        if (i.le.40)  sigma = 1.0*(30-i)/30.0
-        if (i.ge.160) sigma = 1.0*(i-170)/30.0
+c        if (i.le.40)  sigma = 1.0*(40-i)/40.0
+c        if (i.ge.160) sigma = 1.0*(i-160)/40.0
+
+          rr = r(i,j)
+          uu = u(i,j)
+          vv = v(i,j)
+          pp = p(i,j)
+          tt = t(i,j)
+          ee = rr*cv*tt + 0.5*rr*(uu*uu + vv*vv)
 
         sb(1) = eps*(q(i+1,j,1) - 2.0*q(i,j,1) + q(i-1,j,1))
      &        + eps*(q(i,j+1,1) - 2.0*q(i,j,1) + q(i,j-1,1))
-     &        + sigma*(rinf - r(i,j))
+     &        - sigma*(rr - rinf)
 
         sb(2) = eps*(q(i+1,j,2) - 2.0*q(i,j,2) + q(i-1,j,2))
      &        + eps*(q(i,j+1,2) - 2.0*q(i,j,2) + q(i,j-1,2))
-     &        + sigma*(uinf - u(i,j))
+     &        - sigma*(rr*uu - rinf*uinf)
 
         sb(3) = eps*(q(i+1,j,3) - 2.0*q(i,j,3) + q(i-1,j,3))
      &        + eps*(q(i,j+1,3) - 2.0*q(i,j,3) + q(i,j-1,3))
-     &        + sigma*(vinf - v(i,j))
+     &        - sigma*(rr*vv - rinf*vinf)
+
 
         sb(4) = eps*(q(i+1,j,4) - 2.0*q(i,j,4) + q(i-1,j,4))
      &        + eps*(q(i,j+1,4) - 2.0*q(i,j,4) + q(i,j-1,4))
-CCC  &        + sigma*(tinf - t(i,j))
+     &        - sigma*(ee - einf)
 
         do n = 1,4
 
-          rhs(n) = dtdx*(Ef(i+1,j,n) - Ef(i,j,n))
-     &           + dtdy*(Ff(i,j+1,n) - Ff(i,j,n))
+c         1st order
+          rhs(n) = dtdx*(E(i+1,j,n) - E(i-1,j,n))/2.0
+     &           + dtdy*(F(i,j+1,n) - F(i,j-1,n))/2.0
      &           - dt*sb(n)/(dx*dx)
+
+c         2nd order
+c          rhs(n) = dtdx*(Ef(i+1,j,n) - Ef(i,j,n))
+c     &           + dtdy*(Ff(i,j+1,n) - Ff(i,j,n))
+c     &           - dt*sb(n)/(dx*dx)
 
           Q(i,j,n) = Q(i,j,n) - rhs(n)
 
