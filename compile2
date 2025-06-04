@@ -1,3 +1,5 @@
-pgf90 -static-nvidia -fast -O2 -o lax lax-wendroff-method-01.for
+pgf90 -static-nvidia -acc=host       -o lax     lax-wendroff-solver-03.for
+pgf90 -static-nvidia -acc=multicore  -o lax     lax-wendroff-solver-03.for
+pgf90 -static-nvidia -acc -gpu=ccall -o lax-gpu lax-wendroff-solver-03.for
 
-gfortran -m64 -Wall -fcheck=all -fbounds-check -pedantic -fbacktrace -o lax lax-wendroff-method-01.for
+gfortran -m64 -Wall -fcheck=all -fbounds-check -pedantic -fbacktrace -o lax lax-wendroff-solver-01.for
