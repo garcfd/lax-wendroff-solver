@@ -226,8 +226,9 @@ C-----step 1 - compute vectors at cell centres
       do j = 0,nj+1
       do k = 0,nk+1
 
-C-------bottom wall
-        if (j.eq.0) then
+        if ((i.ge.1).and.(i.le.ni).and.
+     &      (k.ge.1).and.(k.le.nk)) then
+        if (j.eq.0) then ! bottom wall
           rr = r(i,1,k)
           uu = u(i,1,k)
           vv = 0.0 ! wall
@@ -236,8 +237,7 @@ C-------bottom wall
           tt = t(i,1,k)
         endif
 
-C-------top wall
-        if (j.eq.nj+1) then
+        if (j.eq.nj+1) then ! top wall
           rr = r(i,nj,k)
           uu = u(i,nj,k)
           vv = 0.0 ! wall
@@ -245,9 +245,12 @@ C-------top wall
           pp = p(i,nj,k)
           tt = t(i,nj,k)
         endif
+        endif
 
-C-------back wall
-        if (k.eq.0) then
+
+        if ((i.ge.1).and.(i.le.ni).and.
+     &      (j.ge.1).and.(j.le.nj)) then
+        if (k.eq.0) then ! back wall
           rr = r(i,j,1)
           uu = u(i,j,1)
           vv = v(i,j,1)
@@ -256,8 +259,7 @@ C-------back wall
           tt = t(i,j,1)
         endif
 
-C-------front wall
-        if (k.eq.nk+1) then
+        if (k.eq.nk+1) then ! front wall
           rr = r(i,j,nk)
           uu = u(i,j,nk)
           vv = v(i,j,nk)
@@ -265,10 +267,13 @@ C-------front wall
           pp = p(i,j,nk)
           tt = t(i,j,nk)
         endif
+        endif
 
-C-------left wall
-        if (i.eq.0) then
 
+        if ((j.ge.1).and.(j.le.nj).and.
+     &      (k.ge.1).and.(k.le.nk)) then
+
+        if (i.eq.0) then ! left wall
           uu = u(1,j,k)
           vv = v(1,j,k)
           ww = w(1,j,k)
@@ -292,8 +297,7 @@ c         rr = pp/(rgas*tt)
 
         endif
 
-C-------right wall
-        if (i.eq.ni+1) then
+        if (i.eq.ni+1) then ! right wall
           uu = u(ni,j,k)
           vv = v(ni,j,k)
           ww = w(ni,j,k)
@@ -307,6 +311,8 @@ C-------right wall
 
           rr = pp/(rgas*tt)
         endif
+        endif
+
 
 C-------main block of inner cells (including obstacle)
         if ((i.ge.1).and.(i.le.ni).and.
@@ -505,6 +511,7 @@ C-----step 3 tangential velocity cut-cells
       enddo ! ncut
 
 
+
 C-----step 4 smoothing
       if (.false.) then ! smoothing only if needed
 !$acc  parallel loop collapse(3)
@@ -544,6 +551,7 @@ C-----step 4 smoothing
       enddo
       enddo
       endif ! true/false
+
 
 
 C-----save the initial residuals
